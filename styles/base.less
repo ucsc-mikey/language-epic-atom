@@ -1,0 +1,47 @@
+@import "syntax-variables";
+//@import "colors";
+
+
+.syntax--epicrules {
+
+    &.syntax--comment {
+        &.syntax--double-slash {
+            color: #736643;
+        }
+        &.syntax--punctuation {
+            color: #b39e69;
+        }
+    }
+
+    &.syntax--variable {
+        color: #fc9221;
+    }
+
+    &.syntax--string.syntax--rulenames {
+        color: #e7db74;
+    }
+    &.syntax--string.syntax--rulesections {
+        color: #e7db74;
+    }
+
+    &.syntax--constant.syntax--numeric {
+        color: #ac7db8;
+    }
+
+    &.syntax--entity.syntax--name {
+        &.syntax--comparisons {
+            color: #a6e22b;
+        }
+        &.syntax--bindings {
+            color: #b75b00;
+        }
+    }
+
+    &.syntax--storage.syntax--type {
+        color: #65d8ee;
+    }
+
+    &.syntax--keyword.syntax--operator{
+        color: #f9245e;
+    }
+}

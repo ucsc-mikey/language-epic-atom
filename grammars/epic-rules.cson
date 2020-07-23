@@ -1,0 +1,65 @@
+'name': 'EPIC'
+'scopeName': 'source.epicrules'
+'fileTypes': [
+  'prs'
+]
+'patterns': [
+    {
+        'comment': 'Rule Name'
+        'match': '(?<=^\\()\\w+[ \\t]*\\n'
+        'name': 'string.rulenames.epicrules'
+    }
+    {
+        'comment': 'Rule Sections'
+        'match': '(?i)\\b(if|then)\\b'
+        'name': 'string.rulesections.epicrules'
+    }
+    {
+        'comment': 'Numbers'
+        'match': '\\b(-)?[0-9.]+\\b'
+        'name': 'constant.numeric.epicrules'
+    }
+    {
+        'comment': 'Variables'
+        'match': '\\?[\\w\\?]+'
+        'name': 'variable.language.epicrules'
+    }
+    {
+        'comment': ' Comparisons'
+        'match': '\\b(?i)(?:not|equal|greater|least|different|not|less[-_]than|greater[-_]than|greater[-_]than[-_]or[-_]equal[-_]to)\\b'
+        'name': 'entity.name.comparisons.epicrules'
+    }
+    {
+        'comment': 'Rule Binding Directives'
+        'match': '\\b(?i)(?:if[-_]only[-_]one|use[-_]only[-_]one|randomly[-_]choose[-_]one|unique)\\b'
+        'name': 'entity.name.bindings.epicrules'
+    }
+    {
+        'comment': 'Architecture Names (WM and other)'
+        'match': '\\b(?i)(?:goal|step|tag|visual|auditory|tactile|motor|initial[-_]memory[-_]contents|parameters|named[-_]location)\\b'
+        'name': 'storage.type.epicrules'
+    }
+    {
+        'comment': 'Commands'
+        'match': '\\b(?i)(?:add|adddb|del|delete|log|define|set[-_]mode|send[-_]to[-_]motor|delay[-_]countdown|increment|send[-_]to[-_]temporal)\\b'
+        'name': 'keyword.operator.epicrules'
+    }
+    {
+
+        'begin': '\\?'
+        'end': '\\?'
+        'name': 'variable.parameter.epicrules'
+    }
+    {
+        'comment': 'Full line comments that start with a double-slash'
+        'begin': '//'
+        'end': '\\n'
+        'name': 'comment.line.double-slash.epicrules'
+    }
+    {
+        'comment': 'Full line comments that start with a semi-colon'
+        'begin': ';'
+        'end': '\\n'
+        'name': 'comment.line.punctuation.epicrules'
+    }
+]
