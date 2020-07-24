@@ -1,0 +1,701 @@
+//  CELLDRIVE, Dial+Drive Lockout Strategy (similar to Wickens Strategy 1)
+//  NEW: Vanishingpoint (red filled circle) is static and represesnts heading.
+//       Steeringwheel (blue filled triangle) is moving and you need to ply the joystick
+//       to move the steeringwheel (wheel direction) back towards vanishingpoint.
+//       Vanishingpoint is static, plying joystick brings it towards centerline.
+//       note: distance would need to be redefined by the device as only the horizontal offset!
+
+(Define Initial_memory_contents (Goal Do Dual_task))
+
+(Define Named_location Keypad_area 32.15 -32.15)
+(Define Named_location Stimulus_location 0.0 -4.5)
+(Define Named_location Screen_Center 0.0 0.0)
+(Define Named_location Road_Center 0.0 -3.25)
+
+(Define Parameters
+//	(Eye Availability Text Zone 100 7.5)			//Only For HUD Text (it's much larger)
+	(Eye Eccentricity_fluctuation_factor Normal When_used 1 .5)
+//	(Eye Eccentricity_fluctuation_factor Fixed 1.0)
+)
+
+// ********** FULLY SEQUENTIAL SPECIALIZED EXECUTIVE RULES ****************
+// Start the tracking task and wait for a phone stimulus onset.
+// Then suspend tracking and run the phone task, then resume tracking.
+//
+; Semi-colon test
+
+(Top_startup
+If (
+	(Goal Do Dual_task)
+	(Not (Step ??? ???))
+	(Not (Step ??? ??? ???))
+	)
+Then (
+	(Add (Goal Identify Objects))
+	(Add (Step Start Tasks))
+	)
+)
+
+(Top_start_tasks
+If (
+	(Goal Do Dual_task)
+	(Step Start Tasks)
+	(Not (Goal Identify Objects))
+	(Motor Ocular Processor Free)
+	)
+Then (
+	(Send_to_motor Ocular Perform Move Road_Center)
+	(Add (Goal Do Tracking))
+	(Delete (Step Start Tasks))
+	(Add (Step Waitfor PhoneNumber))
+	)
+)
+
+(Top_waitfor_PhoneNumber
+If (
+	(Goal Do Dual_task)
+	(Step Waitfor PhoneNumber)
+	(Visual ?stimulus Detection Onset)
+	(Not (Tag ?stimulus ???))
+	)
+Then (
+	//(Delete (Goal Do Tracking))			//phone stimulus is here, give it full attention!
+	(Delete (Step Trackingtask Watch Steeringwheel))	//phone stim here, disable ocular tracking
+	(Add (Tag ?stimulus Phone_number))
+	(Delete (Step Waitfor PhoneNumber))
+	(Add (Step Start DialTask))
+	)
+)
+
+(Top_start_phone_task
+If (
+	(Goal Do Dual_task)
+	(Step Start DialTask)
+	)
+Then (
+	(Delete (Step Start DialTask))
+	(Add (Goal Do DialTask))
+	(Add (Step Start Dialing))
+	)
+)
+
+// ********** TRACKING TASK RULES ****************
+// Since the tracking task is continuous, these
+// rules continue to run as long as the goal
+// is present - the task does not terminate by itself.
+
+(Tracking_task_startup
+If (
+	(Goal Do Tracking)
+	(Not (Step Trackingtask ??? ???))
+	)
+Then (
+	(Add (Step Trackingtask Watch Steeringwheel))
+	(Add (Step Trackingtask Track Steeringwheel))
+	)
+)
+
+(Watch_steeringwheel
+If (
+	(Goal Do Tracking)
+	(Step Trackingtask Watch Steeringwheel)
+	(Tag ?steeringwheel Steeringwheel)
+	(Visual ?steeringwheel Eccentricity_zone Periphery)
+	(Motor Ocular Modality Free)
+	)
+Then (
+	(Send_to_motor Ocular Perform Move ?steeringwheel)
+	)
+)
+
+// ply only if the eye is on the steeringwheel and steeringwheel/egovanishingpoint
+// are not aligned sufficiently
+// and no hand activity (possible previous Ply) is underway
+(Ply_steeringwheel
+If (
+	(Goal Do Tracking)
+	(Step Trackingtask Track Steeringwheel)
+	(Tag ?steeringwheel Steeringwheel)
+	(Tag ?egovanishingpoint Egovanishingpoint)
+	(Not (Visual ?steeringwheel Eccentricity_zone Periphery)) //i.e., you have access to updated Distance property
+	(Visual ?steeringwheel Distance ?error)
+	(Greater_than ?error .4)
+	(Motor Manual Processor Free)
+	)
+Then (
+	(Send_to_motor Manual Perform Ply ?steeringwheel ?egovanishingpoint Left)
+	)
+)
+
+// ********** PHONE TASK RULES ****************
+
+(phone_task_startup
+If (
+	(Goal Do DialTask)
+	(Step Start Dialing)
+	(Not (Step DialTask ??? ???))
+	)
+Then (
+	(Delete (Step Start Dialing))
+	(Add (Step DialTask Lookat PhoneNumber))
+	)
+)
+
+// The move will take little or no time if the eye is already there
+(Lookat_Phone_number
+If (
+	(Goal Do DialTask)
+	(Step DialTask Lookat PhoneNumber)
+	(Tag ?stimulus Phone_number)
+	(Motor Ocular Preparation Free)
+	)
+Then (
+	(Send_to_motor Ocular Perform Move ?stimulus)
+	(Delete (Step DialTask Lookat PhoneNumber))
+	(Add (Step DialTask Waitfor EyeDone))
+	)
+)
+
+(Waitfor_eyemove_done
+If (
+	(Goal Do DialTask)
+	(Step DialTask Waitfor EyeDone)
+	(Motor Ocular Modality Free)
+	)
+Then (
+	(Delete (Step DialTask Waitfor EyeDone))
+	(Add (Step DialTask Encode Stimulus))
+	(Add (Step Trackingtask Watch Steeringwheel))		//reinstate ocular part of tracking
+	(Delete (Step Trackingtask Track Steeringwheel))	//disable manual part of tracking
+	)
+)
+
+(Encode_phone_response
+If (
+	(Goal Do DialTask)
+	(Step DialTask Encode Stimulus)
+	(Tag ?stimulus Phone_number)
+	(Visual ?stimulus Text ?thenumber)
+	)
+Then (
+	(Delete (Step DialTask Encode Stimulus))
+	(Add (Tag ?thenumber Dial_Sequence))
+	(Add (Step DialTask Dial Number))
+	)
+)
+
+(Respond_Current_Digit_Normaldigit_cautious
+If (
+	(Goal Do DialTask)
+	(Step DialTask Dial Number)
+	(Step Verify DialProgress)
+	(Tag Current_Digit ?CD)
+	(DIFFERENT ?CD E)
+	(Motor Manual Modality Free)
+	)
+Then (
+	(Send_to_motor Manual Perform Punch ?CD Right Thumb)
+	(Delete (Step Verify DialProgress))
+	(Add (Step DialTask Lookat Digitlist))
+	)
+)
+
+(Respond_Current_Digit_Normaldigit_daring
+If (
+	(Goal Do DialTask)
+	(Step DialTask Dial Number)
+	(Not (Step Verify DialProgress))
+	(Tag Current_Digit ?CD)
+	(DIFFERENT ?CD E)
+	(Motor Manual Modality Free)
+	)
+Then (
+	(Send_to_motor Manual Perform Punch ?CD Right Thumb)
+	(Delete (Tag Current_Digit ?CD))
+	(Add (Step DialTask Dial Number))	//redundant, but helps track flow or steps
+	)
+)
+
+(Respond_Current_Digit_Lastdigit
+If (
+	(Goal Do DialTask)
+	(Step DialTask Dial Number)
+	(Tag Current_Digit E)
+	(Tag ?stimulus Phone_number)
+	(Motor Manual Modality Free)
+	)
+Then (
+	(Send_to_motor Manual Perform Punch E Right Thumb)
+	(Delete (Step DialTask Dial Number))
+	(Delete (Tag Current_Digit E))
+	(Delete (Step Get Next Digit))
+	(Delete (Tag ?stimulus Phone_number))
+	(Add (Step Waitfor PhoneNumber))
+	(Add (Step DialTask Finish Task)) //redundant
+	)
+)
+
+(Respond_Lookat_DigitList
+If (
+	(Goal Do DialTask)
+	(Step DialTask Lookat Digitlist)
+	(Tag ?dl Digitlist)
+	(Motor Manual Punch Right Thumb Finished)
+	(Motor Ocular Preparation Free)
+	)
+Then (
+	(Send_to_motor Ocular Perform Move ?dl)
+	(Delete (Step DialTask Lookat Digitlist))
+	(Delete (Step DialTask Dial Number))
+	(Add (Step DialTask Check Response))
+	)
+)
+
+(Respond_Check_Not_OK
+If (
+	(Goal Do DialTask)
+	(Step DialTask Check Response)
+	(Tag Expected_Sequence ?ES)
+	(Tag Old_Expected_Sequence ?OES)
+	(Tag ?dl Digitlist)
+	(Visual ?dl Eccentricity_zone Fovea)
+	(Visual ?dl Text ???)
+	(Not (Visual ?dl Text ?OES))
+	(Not (Visual ?dl Text ?ES))
+	(Motor Manual Preparation Free)
+	(Motor Ocular Modality Free)
+	)
+Then(
+	(Send_to_motor Manual Perform Punch B Right Thumb)
+	(Delete (Step DialTask Check Response))
+	(Delete (Step Verify DialProgress))
+	(Add (Step DialTask Dial Number)) //not redundant
+	)
+)
+
+(Respond_Check_OK
+If (
+	(Goal Do DialTask)
+	(Step DialTask Check Response)
+	(Tag Current_Digit ?CD)
+	(DIFFERENT ?CD E)
+	(Tag Expected_Sequence ?ES)
+	(Tag ?dl Digitlist)
+	(Visual ?dl Eccentricity_zone Fovea)
+	(Visual ?dl Text ?ES)
+	(Motor Manual Modality Free)
+	(Motor Ocular Modality Free)
+	)
+Then(
+	(Delete (Step DialTask Check Response))
+	(Delete (Step Verify DialProgress))
+	(Delete (Tag Current_Digit ?CD))
+	(Add (Step DialTask Dial Number)) //not redundant
+	)
+)
+
+(Finish_phone_task
+If (
+	(Goal Do DialTask)
+	(Step DialTask Finish Task)
+	(Motor Ocular Modality Free)
+	(Motor Manual Processor Free)
+	(Tag ?xx Steeringwheel)
+	)
+Then (
+	(Add (Step Trackingtask Track Steeringwheel))	//re-enable manual part of tracking
+	(Delete (Step DialTask Finish Task))
+	(Delete (Goal Do DialTask))
+	(Send_to_motor Ocular Perform Move ?xx)
+	)
+)
+
+// ********** IDENTIFY OBJECT RULES ****************
+// Start up the tasks by identifying the objects in the display
+
+(Identify_objects_mfg
+If (
+	(Goal Identify Objects)
+	(Not (Step Identify_objects ??? ???))
+	)
+Then (
+	(Add (Step Identify_objects scan objects))
+	(Add (Step Identify_objects objects found))
+	)
+)
+
+(Look_at_object
+If (
+	(Goal Identify Objects)
+	(Step Identify_objects scan objects)
+	(Visual ?object Status Visible)
+	(Not (Tag Identify_objects ?object looked_at))
+	(Not (Tag ?object ???))
+	(Motor Ocular Modality Free)
+	(Randomly_choose_one)
+	)
+Then (
+	(Send_to_motor Ocular Perform Move ?object)
+	(Add (Tag Identify_objects ?object looked_at))
+	)
+)
+
+(Identify_horizon
+If (
+	(Goal Identify Objects)
+	(Visual ?horizon Shape Line)
+	(Visual ?horizon Color Black)
+	(Not (Tag ?horizon Horizon))
+	)
+Then (
+	(Add (Tag ?horizon Horizon))
+	)
+)
+
+//new
+(Identify_centerline
+If (
+	(Goal Identify Objects)
+	(Visual ?centerline Shape Line)
+	(Visual ?centerline Color Yellow)
+	(Not (Tag ?centerline Centerline))
+	)
+Then (
+	(Add (Tag ?centerline Centerline))
+	)
+)
+
+//new
+(Identify_lboundary
+If (
+	(Goal Identify Objects)
+	(Tag ?centerline Centerline) //this rule cant fire until youve identified the centerline
+	(Visual ?lboundary Shape Line)
+	(Visual ?lboundary Color SlateGray)
+	(Visual ?lboundary Left_of ?centerline) //must be left of centerline
+	(Not (Tag ?lboundary Lboundary))
+	)
+Then (
+	(Add (Tag ?lboundary Lboundary))
+	)
+)
+
+//new
+(Identify_rboundary
+If (
+	(Goal Identify Objects)
+	(Tag ?centerline Centerline) //this rule cant fire until youve identified the centerline
+	(Visual ?rboundary Shape Line)
+	(Visual ?rboundary Color SlateGray)
+	(Visual ?rboundary Right_of ?centerline) //must be right of centerline
+	(Not (Tag ?rboundary Rboundary))
+	)
+Then (
+	(Add (Tag ?rboundary Rboundary))
+	)
+)
+
+//new
+(Identify_dashboard
+If (
+	(Goal Identify Objects)
+	(Visual ?dashboard Shape Filled_Rectangle)
+	(Visual ?dashboard Color SlateGray)
+	(Not (Tag ?dashboard Dashboard))
+	)
+Then (
+	(Add (Tag ?dashboard Dashboard))
+	)
+)
+
+//new
+(Identify_speedometer
+If (
+	(Goal Identify Objects)
+	(Visual ?speedometer Shape Filled_Rectangle)
+	(Visual ?speedometer Color LightGray)
+	(Not (Tag ?speedometer Speedometer))
+	)
+Then (
+	(Add (Tag ?speedometer Speedometer))
+	)
+)
+
+//was the target
+(Identify_vanishingpoint
+If (
+	(Goal Identify Objects)
+	(Visual ?vanishingpoint Shape Filled_Circle)
+	(Visual ?vanishingpoint Color Red)
+	(Not (Tag ?vanishingpoint Vanishingpoint))
+	)
+Then (
+	(Add (Tag ?vanishingpoint Vanishingpoint))
+	)
+)
+
+//new
+(Identify_egovanishingpoint
+If (
+	(Goal Identify Objects)
+	(Visual ?egovanishingpoint Shape Filled_Circle)
+	(Visual ?egovanishingpoint Color Brown)
+	(Not (Tag ?egovanishingpoint Egovanishingpoint))
+	)
+Then (
+	(Add (Tag ?egovanishingpoint Egovanishingpoint))
+	)
+)
+
+//was the cursor
+(Identify_steeringwheel
+If (
+	(Goal Identify Objects)
+	(Visual ?steeringwheel Shape Filled_Triangle)
+	(Visual ?steeringwheel Color Blue)
+	(Not (Tag ?steeringwheel Steeringwheel))
+	)
+Then (
+	(Add (Tag ?steeringwheel Steeringwheel))
+	)
+)
+
+(Identify_digitlist
+If(
+	(Goal Identify Objects)
+	(Visual ?digitlist Color Pink)
+	(Visual ?digitlist Shape Filled_Rectangle)
+	(Not (Tag ?digitlist Digitlist))
+	)
+Then (
+	(Add (Tag ?digitlist Digitlist))
+	)
+)
+
+(All_identified
+If (
+	(Goal Identify Objects)
+	(Step Identify_objects objects found)
+	(Tag ?horizon Horizon)
+	(Tag ?centerline Centerline)
+	(Tag ?lboundary Lboundary)
+	(Tag ?rboundary Rboundary)
+	(Tag ?dashboard Dashboard)
+	(Tag ?speedometer Speedometer)
+	(Tag ?vanishingpoint Vanishingpoint) //was target
+	(Tag ?egovanishingpoint Egovanishingpoint)
+	(Tag ?steeringwheel Steeringwheel) //was cursor
+	(Tag ?digitlist Digitlist)
+	)
+Then (
+	(Delete (Tag Identify_objects ?horizon looked_at))
+	(Delete (Tag Identify_objects ?centerline looked_at))
+	(Delete (Tag Identify_objects ?lboundary looked_at))
+	(Delete (Tag Identify_objects ?rboundary looked_at))
+	(Delete (Tag Identify_objects ?dashboard looked_at))
+	(Delete (Tag Identify_objects ?speedometer looked_at))
+	(Delete (Tag Identify_objects ?vanishingpoint looked_at))
+	(Delete (Tag Identify_objects ?egovanishingpoint looked_at))
+	(Delete (Tag Identify_objects ?steeringwheel looked_at))
+	(Delete (Tag Identify_objects ?digitlist looked_at))
+	(Delete (Goal Identify Objects))
+	(Delete (Step Identify_objects objects found))
+	(Delete (Step Identify_objects scan objects))
+	)
+)
+
+
+// CHANGE v6: Add Rules specifially to represent memory
+//            of phone number and keep track of which one is next
+
+// ********** MEMORY NUMBER CHAINING RULES ****************
+// Note, these rules run asynchronously and the response rules
+// need only delete the Current_Digit tag after the response is
+// initiated to ensure the next digit in the sequence is ready when
+// the subsequent response is to be made. The response rules can
+// make use of the Expected_Sequence tag to make sure that what
+// appears on the digitlist is what you would expect after dialing
+// the next number. For now, it is assumed that you will not
+// misrecollect the number sequence associated with the stimulus.
+
+
+//After stimulus is tagged, this rule fires and
+//enables the Get Next Digit Step which starts the phone number
+//retrieval (the rules below) chain, allowing the response chain (elsewhere) to proceed.
+(MEMORY_RETRIEVAL_START
+If (
+	(Tag ??? Dial_Sequence)
+	(Not (Tag Next_Digit ?ND))
+	(Not (Tag Current_Digit ?CD))
+	(Not (Step Get Next Digit))
+	(Not (Tag Expected_Sequence ?ES))
+)
+Then (
+	(Add (Step Get Next Digit))
+	)
+)
+
+//If you are supposed to get the next digit, but there is no next digit,
+//Then stop the chain!!
+(MEMORY_RETRIEVAL_DONE
+If (
+	(Tag ?DS Dial_Sequence)
+	(Not (Tag Next_Digit ?ND))
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+)
+Then (
+	(Delete (Tag ?DS Dial_Sequence))
+	(Delete (Tag Expected_Sequence ?ES))
+	)
+)
+
+//----start phone number specific rules for CALLBUD:4539268---
+
+//If you want to get the next digit, and you have neither a next or current
+//digit, then you must need the 1st digit in the chain, setup the next/current
+//digits and tag the expected change in digitlist after you dial number.
+(MEMORY_CALLBUD_4
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Not (Tag Next_Digit ?ND))
+	(Not (Tag Current_Digit ?CD))
+	(Step Get Next Digit)
+)
+Then (
+	(Add (Tag Next_Digit 5))
+	(Add (Tag Current_Digit 4))
+	(Add (Tag Expected_Sequence >4))
+	)
+)
+
+//If you want to get the next digit, and you have the next digit, but no
+//current digit, then you have already started the chain and are looking for
+//the next number...proceed as relevant for phone number (e.g., dial 5, setup next to dial 3)
+(MEMORY_CALLBUD_5
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Tag Next_Digit 5)
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+	(Step Get Next Digit)
+)
+Then (
+	(Delete (Tag Next_Digit 5))
+	(Add (Tag Next_Digit 3))
+	(Add (Tag Current_Digit 5))
+	(Delete (Tag Expected_Sequence ?ES))
+	(Add (Tag Expected_Sequence >45))
+	)
+)
+
+(MEMORY_CALLBUD_3
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Tag Next_Digit 3)
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+	(Step Get Next Digit)
+)
+Then (
+	(Delete (Tag Next_Digit 3))
+	(Add (Tag Next_Digit 9))
+	(Add (Tag Current_Digit 3))
+	(Delete (Tag Expected_Sequence ?ES))
+	(Add (Tag Expected_Sequence >453))
+	(Add (Tag DialTask Using Hand))
+	//(Add (Step Verify DialProgress))		//for later
+	)
+)
+
+(MEMORY_CALLBUD_9
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Tag Next_Digit 9)
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+	(Step Get Next Digit)
+)
+Then (
+	(Delete (Tag Next_Digit 9))
+	(Add (Tag Next_Digit 2))
+	(Add (Tag Current_Digit 9))
+	(Delete (Tag Expected_Sequence ?ES))
+	(Add (Tag Expected_Sequence >4539))
+	)
+)
+
+(MEMORY_CALLBUD_2
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Tag Next_Digit 2)
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+	(Step Get Next Digit)
+)
+Then (
+	(Delete (Tag Next_Digit 2))
+	(Add (Tag Next_Digit 6))
+	(Add (Tag Current_Digit 2))
+	(Delete (Tag Expected_Sequence ?ES))
+	(Add (Tag Expected_Sequence >45392))
+	)
+)
+
+(MEMORY_CALLBUD_6
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Tag Next_Digit 6)
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+	(Step Get Next Digit)
+)
+Then (
+	(Delete (Tag Next_Digit 6))
+	(Add (Tag Next_Digit 8))
+	(Add (Tag Current_Digit 6))
+	(Delete (Tag Expected_Sequence ?ES))
+	(Add (Tag Expected_Sequence >453926))
+	)
+)
+
+(MEMORY_CALLBUD_8
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Tag Next_Digit 8)
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+	(Step Get Next Digit)
+)
+Then (
+	(Delete (Tag Next_Digit 8))
+	(Add (Tag Next_Digit E))
+	(Add (Tag Current_Digit 8))
+	(Delete (Tag Expected_Sequence ?ES))
+	(Add (Tag Expected_Sequence >4539268))
+	//(Add (Step Verify DialProgress))			//for later
+	)
+)
+
+//----end phone number specific rules for CALLBUD:4539268---
+
+//This one is similar to the rest except that it does not add
+//a new next_digit. This will lead to MEMORY_RETRIEVAL_START firing
+//once the response code initiates the response and deletes the Current_Digit tag.
+
+(MEMORY_END_SEQUENCE
+If (
+	(Tag CALLBUD Dial_Sequence)
+	(Tag Next_Digit E)
+	(Not (Tag Current_Digit ?CD))
+	(Tag Expected_Sequence ?ES)
+	(Step Get Next Digit)
+
+)
+Then (
+	(Delete (Tag Next_Digit E))
+	(Add (Tag Current_Digit E))
+	(Delete (Tag Expected_Sequence ?ES))
+	(Add (Tag Expected_Sequence >4539268E))
+	)
+)

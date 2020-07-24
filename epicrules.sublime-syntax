@@ -1,0 +1,80 @@
+%YAML 1.2
+---
+# See http://www.sublimetext.com/docs/3/syntax.html
+# I got some extra scopes from here: 
+#  https://github.com/jonschlinkert/sublime-monokai-extended/blob/master/Monokai%20Extended%20Origin.tmTheme
+name: EPIC Rules
+file_extensions:
+  - prs
+scope: source.epicrules
+contexts:
+  main:
+
+    # Keywords are if, else for and while.
+    # Note that blackslashes don't need to be escaped within single quoted
+    # strings in YAML. When using single quoted strings, only single quotes
+    # need to be escaped: this is done by using two single quotes next to each
+    # other.
+
+    # NOTE: What about: modality|motor|manual|vocal|preparation|free|busy|ocular|perform|move|peck|punch|ply|speak
+
+    # Rule Name
+    - match: '(?<=^\()\w+[ \t]*\n'
+      scope: string.rulenames.epicfiles
+
+    # Rule Sections
+    - match: '(?i)\b(if|then)\b'
+      scope: string.rulesections.epicrules
+
+    # Numbers
+    - match: '\b(-)?[0-9.]+\b'
+      scope: constant.numeric.epicrules
+
+    # Comparisons
+    - match: '\b(?i)(?:not|equal|greater|least|different|not|less[-_]than|greater[-_]than|greater[-_]than[-_]or[-_]equal[-_]to)\b'
+      scope: entity.name.combarisons.epicrules
+
+    # Binding Directives
+    - match: '\b(?i)(?:if[-_]only[-_]one|use[-_]only[-_]one|randomly[-_]choose[-_]one|unique)\b'
+      scope: entity.name.bindings.epicrules
+
+    # Architecture Names (WM and other)
+    - match: '\b(?i)(?:goal|step|tag|visual|auditory|tactile|motor|initial[-_]memory[-_]contents|parameters|named[-_]location)\b'
+      scope: storage.type.epicrules
+
+    # Commands
+    - match: '\b(?i)(?:add|adddb|del|delete|log|define|set[-_]mode|send[-_]to[-_]motor|delay[-_]countdown|increment|send[-_]to[-_]temporal)\b'
+      scope: keyword.operator.epicrules
+
+    # >>> In Sublime, strings and comments are defined in 2 parts
+    # >>> BEGINNINGS
+
+    # Strings begin and end with quotes, and use backslashes as an escape
+    # character
+    - match: '\?'
+      scope: punctuation.definition.string.begin.epicrules
+      push: double_quoted_string
+
+    # Comments begin with a '//' and finish at the end of the line
+    - match: '//|;'
+      scope: punctuation.definition.comment.epicrules
+      push: line_comment
+
+  
+  # >>> In Sublime, strings and comments are defined in 2 parts
+  # >>> ENDINGS
+
+  double_quoted_string:
+    # - meta_scope: string.quoted.double.epicrules
+    - meta_scope: variable.parameter.epicrules
+    # - match: '[a-zA-Z]'
+    #   scope: constant.character.escape.epicrules
+    # - match: '[ \)]'
+    - match: '[\w\?]+'
+      scope: punctuation.definition.string.end.epicrules
+      pop: true
+
+  line_comment:
+    - meta_scope: comment.line.epicrules
+    - match: $
+      pop: true

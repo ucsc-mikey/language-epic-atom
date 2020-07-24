@@ -45,7 +45,7 @@
         'name': 'keyword.operator.epicrules'
     }
     {
-
+        'comment': 'Variables'
         'begin': '\\?'
         'end': '\\?'
         'name': 'variable.parameter.epicrules'

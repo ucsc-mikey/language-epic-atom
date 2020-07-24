@@ -1,14 +1,17 @@
 {
     "name": "language-epic",
-    "version": "0.1.0",
-    "description": "A short description of your syntax theme",
+    "version": "0.0.0",
+    "description": "Syntax highlighting for the EPIC language in prs files",
     "keywords": [
-        "syntax"
+        "language",
+        "grammar",
+        "syntax",
+        "highlighting"
     ],
     "repository": "https://github.com/ucsc-mikey/language-epic-atom",
-    "license": "MIT",
     "engines": {
-        "atom": "*"
+        "atom": "*",
+        "node": "*"
     },
     "devDependencies": {
         "coffeelint": "^1.10.1"

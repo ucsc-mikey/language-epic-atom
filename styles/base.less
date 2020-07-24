@@ -1,47 +1,49 @@
 @import "syntax-variables";
-//@import "colors";
-
 
 .syntax--epicrules {
 
+    color: #ffffff;                 // Default to white
+
     &.syntax--comment {
         &.syntax--double-slash {
-            color: #736643;
+            color: #736643;         // Double-slash comments are brown
         }
         &.syntax--punctuation {
-            color: #b39e69;
+            color: #b39e69;         // Semi-colon comments are lighter-brown
         }
     }
 
     &.syntax--variable {
-        color: #fc9221;
+        color: #fc9221;             // Variables are orange
     }
 
-    &.syntax--string.syntax--rulenames {
-        color: #e7db74;
-    }
-    &.syntax--string.syntax--rulesections {
-        color: #e7db74;
+    &.syntax--string {
+        &.syntax--rulenames {
+            color: #e7db74;         // Rulenames are yellow
+        }
+        &.syntax--rulesections {
+            color: #e7db74;         // Rule sections are also yellow
+        }
     }
 
     &.syntax--constant.syntax--numeric {
-        color: #ac7db8;
+        color: #ac7db8;             // Numbers are purple
     }
 
     &.syntax--entity.syntax--name {
         &.syntax--comparisons {
-            color: #a6e22b;
+            color: #a6e22b;         // Comparisons are bright green
         }
         &.syntax--bindings {
-            color: #b75b00;
+            color: #b75b00;         // Rule binding directives are dark orange
         }
     }
 
     &.syntax--storage.syntax--type {
-        color: #65d8ee;
+        color: #65d8ee;             // Architecture names are teal
     }
 
     &.syntax--keyword.syntax--operator{
-        color: #f9245e;
+        color: #f9245e;             // Keywords are red
     }
 }
