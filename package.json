@@ -1,6 +1,6 @@
 {
     "name": "language-epic",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "description": "Syntax highlighting for the EPIC language in prs files",
     "keywords": [
         "language",
